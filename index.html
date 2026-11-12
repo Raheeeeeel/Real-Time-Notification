@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f7f4">
+    <title>Reminder Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="page-shell">
+        <header class="topbar">
+            <a class="brand" href="{{ url_for('home') }}" aria-label="Reminder Hub home">
+                <span class="brand-mark" aria-hidden="true">R</span>
+                <span>reminder<span class="brand-light">hub</span></span>
+            </a>
+            <span class="topbar-note"><span class="status-dot"></span> Your time, thoughtfully managed</span>
+        </header>
+
+        <main>
+            <section class="intro" aria-labelledby="page-title">
+                <div>
+                    <p class="eyebrow">A LITTLE MORE ON TOP OF THINGS</p>
+                    <h1 id="page-title">Make room for<br><span>what matters.</span></h1>
+                    <p class="intro-copy">A calm place to keep track of the things you don't want to forget.</p>
+                </div>
+                <div class="date-stamp" aria-label="Today's date">
+                    <span class="date-icon" aria-hidden="true">✳</span>
+                    <span id="todayLabel">Make today count</span>
+                </div>
+            </section>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-stack" aria-live="polite">
+                        {% for category, message in messages %}
+                            <p class="flash-message {{ category }}">{{ message }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <section class="stats" aria-label="Reminder overview">
+                <article class="stat-card">
+                    <span class="stat-icon mint" aria-hidden="true">◷</span>
+                    <div><span class="stat-value">{{ pending|length }}</span><span class="stat-label">UP NEXT</span></div>
+                </article>
+                <article class="stat-card">
+                    <span class="stat-icon lavender" aria-hidden="true">✓</span>
+                    <div><span class="stat-value">{{ completed|length }}</span><span class="stat-label">COMPLETED</span></div>
+                </article>
+                <article class="stat-card stat-note">
+                    <span class="note-sparkle" aria-hidden="true">✦</span>
+                    <p>Small steps add up.<br><strong>You've got this.</strong></p>
+                </article>
+            </section>
+
+            <div class="workspace">
+                <section class="panel composer" aria-labelledby="create-heading">
+                    <div class="panel-heading">
+                        <div>
+                            <p class="eyebrow">START WITH ONE THING</p>
+                            <h2 id="create-heading">New reminder</h2>
+                        </div>
+                        <span class="heading-mark" aria-hidden="true">+</span>
+                    </div>
+                    <form method="post" id="reminderForm">
+                        <label for="title">What do you need to remember?</label>
+                        <input id="title" type="text" name="title" placeholder="e.g. Call the dentist" maxlength="100" required autocomplete="off">
+
+                        <label for="desc">A little context <span class="optional">(optional)</span></label>
+                        <textarea id="desc" name="desc" placeholder="Add a note to future you..." maxlength="200" rows="3"></textarea>
+
+                        <label for="remind_time">When should we remind you?</label>
+                        <input id="remind_time" type="datetime-local" name="remind_time" required>
+                        <p class="field-hint">A desktop notification will appear when it's time.</p>
+
+                        <button class="primary-button" type="submit">
+                            <span aria-hidden="true">＋</span> Create reminder
+                        </button>
+                    </form>
+                </section>
+
+                <section class="panel reminders-panel" aria-labelledby="reminders-heading">
+                    <div class="reminders-header">
+                        <div>
+                            <p class="eyebrow">YOUR PERSONAL LINEUP</p>
+                            <h2 id="reminders-heading">Your reminders <span class="total-count">{{ pending|length + completed|length }}</span></h2>
+                        </div>
+                    </div>
+
+                    <div class="list-tools">
+                        <label class="search-box" for="reminderSearch">
+                            <span aria-hidden="true">⌕</span>
+                            <input id="reminderSearch" type="search" placeholder="Find a reminder..." autocomplete="off">
+                        </label>
+                        <div class="filter-tabs" role="group" aria-label="Filter reminders">
+                            <button type="button" class="filter-tab active" data-filter="all" aria-pressed="true">All</button>
+                            <button type="button" class="filter-tab" data-filter="pending" aria-pressed="false">Upcoming</button>
+                            <button type="button" class="filter-tab" data-filter="done" aria-pressed="false">Done</button>
+                        </div>
+                    </div>
+
+                    <div class="reminder-list" id="reminderList">
+                        {% for r in pending %}
+                            <article class="reminder-item pending" data-status="pending" data-search="{{ (r.title ~ ' ' ~ (r.description or ''))|lower }}" data-remind-time="{{ r.remind_time.isoformat() }}">
+                                <span class="item-marker" aria-hidden="true"><span></span></span>
+                                <div class="item-content">
+                                    <h3>{{ r.title }}</h3>
+                                    {% if r.description %}<p class="item-description">{{ r.description }}</p>{% endif %}
+                                    <p class="item-time"><span aria-hidden="true">◷</span> <time datetime="{{ r.remind_time.isoformat() }}">{{ r.remind_time.strftime('%b %d, %Y at %I:%M %p') }}</time><span class="relative-time"></span></p>
+                                </div>
+                                <form class="delete-form" method="post" action="{{ url_for('delete', rid=r.id) }}">
+                                    <button class="delete-button" type="submit" aria-label="Delete {{ r.title }}" title="Delete reminder">×</button>
+                                </form>
+                            </article>
+                        {% endfor %}
+                        {% for r in completed %}
+                            <article class="reminder-item done" data-status="done" data-search="{{ (r.title ~ ' ' ~ (r.description or ''))|lower }}" data-remind-time="{{ r.remind_time.isoformat() }}">
+                                <span class="item-marker" aria-hidden="true"><span>✓</span></span>
+                                <div class="item-content">
+                                    <h3>{{ r.title }}</h3>
+                                    {% if r.description %}<p class="item-description">{{ r.description }}</p>{% endif %}
+                                    <p class="item-time"><span aria-hidden="true">✓</span> <time datetime="{{ r.remind_time.isoformat() }}">{{ r.remind_time.strftime('%b %d, %Y at %I:%M %p') }}</time><span class="completed-label">Completed</span></p>
+                                </div>
+                                <form class="delete-form" method="post" action="{{ url_for('delete', rid=r.id) }}">
+                                    <button class="delete-button" type="submit" aria-label="Delete {{ r.title }}" title="Delete reminder">×</button>
+                                </form>
+                            </article>
+                        {% endfor %}
+                    </div>
+                    <div class="empty-state" id="emptyState" {% if pending or completed %}hidden{% endif %}>
+                        <span class="empty-icon" aria-hidden="true">✳</span>
+                        <h3>Nothing on your list. Yet.</h3>
+                        <p>Add a reminder and give your future self a hand.</p>
+                    </div>
+                    <p class="no-results" id="noResults" hidden>No reminders match that search.</p>
+                </section>
+            </div>
+        </main>
+        <footer class="footer">Made for a little more peace of mind <span aria-hidden="true">✳</span></footer>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+</body>
+</html>
